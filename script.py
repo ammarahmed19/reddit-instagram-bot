@@ -7,6 +7,7 @@ import csv
 from time import sleep
 import os, os.path
 import shutil
+from PIL import Image
 
 
 FB_OAUTH="https://www.facebook.com/v3.3/dialog/oauth"
@@ -16,12 +17,12 @@ REDDIT_OAUTH="https://www.reddit.com/api/v1/authorize"
 LOCAL="http://localhost:8080"
 USER_AGENT ="Mozilla/5.0"
 TIMEOUT=60
-image_exts = ['.jpeg', '.gif', '.png']
+image_exts = ['.jpeg', '.png', 'jpg']
 
 logger = None
 
 def is_image(url):
-    if any(image_ext in url for image_ext in image_exts):
+    if any(url.endswith(image_ext) for image_ext in image_exts):
         return True
     return False
 
@@ -142,7 +143,7 @@ def scrapeSubreddit(subreddit):
 		logger.critical("posts.json successfully created")
 		print("posts.json successfully created")
 
-		posts = data
+		posts = data['posts']
 
 	print("data loaded")
 
@@ -166,14 +167,14 @@ def loginInsta(instagram_username, instagram_password):
 	return insta_api
 
 def PostPhoto(insta_api, photolink, caption):
-	if photolink.endswith('gif') or photolink.endswith('jpeg') or photolink.endswith('png'):
+	if photolink.endswith('gif') or photolink.endswith('jpeg') or photolink.endswith('png') or photolink.endswith('jpg'):
 		photo = os.path.join(os.getcwd() ,'photo.'+photolink[-3:])
-
 	else:
 		logger.error(f"{photolink[-3:]} is unsupported format, skipping {photolink}")
 		print(f"{photolink[-3:]} is unsupported format, skipping {photolink}")
 		return 0
 
+	print("downloading photo from", photolink)
 	response = requests.get(photolink, stream=True)
 
 	if response.status_code == 200:
@@ -181,10 +182,20 @@ def PostPhoto(insta_api, photolink, caption):
 		with open(photo, 'wb') as f:
 			shutil.copyfileobj(response.raw, f)
 
+		if photo.endswith('jpg'):
+			print ("converting jpg")
+			im = Image.open(photo)
+			rgb_im = im.convert('RGB')
+			photo = os.path.join(os.getcwd() ,'photo.jpeg')
+			rgb_im.save(photo)
+
+		print("photo downloaded, posting photo")
+
 		status = insta_api.uploadPhoto(photo, caption=caption)
 		print(status)
 		print("Photo Posted")
 		logger.info("Photo with caption '" + caption + "' posted")
+		os.remove(photo)
 
 	else:
 		print("ERROR: invalid status code for image", photolink)
@@ -194,6 +205,7 @@ def RemovePostFromJson(postlink):
 	with open(os.path.join(os.getcwd(), 'posts.json'), 'r+', encoding='utf-8') as f:
 		data = json.load(f)
 		data['posts'][:] = [d for d in data['posts'] if d.get('link') != postlink]
+		f.seek(0)
 		f.truncate()
 		json.dump(data, f, indent=4)
 
@@ -201,6 +213,7 @@ def AddPostToPosted(postlink):
 	with open(os.path.join(os.getcwd(), 'posted.json'), 'r+', encoding='utf-8') as f:
 		data = json.load(f)
 		data['posted'].append(postlink)
+		f.seek(0)
 		f.truncate()
 		json.dump(data, f, indent=4)
 
@@ -209,8 +222,10 @@ def CheckIfPosted(postlink):
 		with open(os.path.join(os.getcwd(), 'posted.json'), 'r', encoding='utf-8') as f:
 			data = json.load(f)
 			if postlink in data['posted']:
+				print("skipping post because it's already posted")
 				return True
 			else:
+				print("proceeding to posting photo")
 				return False
 	except:
 		print("error in CheckIfPosted")
