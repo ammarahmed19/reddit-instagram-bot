@@ -26,6 +26,13 @@ def is_image(url):
         return True
     return False
 
+def mpath(fpath):
+	return os.path.join(os.getcwd(), fpath)
+
+def plog(msg, log):
+	print(msg)
+	log(msg)
+
 
 def setupLog():
 	global logger
@@ -35,8 +42,7 @@ def setupLog():
 	handler.setFormatter(logging.Formatter('%(name)s %(message)s')) # or whatever
 	logger.addHandler(handler)
 
-	print ("Log Setted Up")
-	logger.info("Log Created")
+	plog ("Log Setted Up", logger.info)
 
 def examineConfig(data):
 	assert data['interval'].strip().isdigit(), "interval must be numbers only, decimals and letters are not accepted"
@@ -50,16 +56,15 @@ def examineConfig(data):
 
 def loadConfig():
 	try:
-		with open(os.path.join(os.getcwd(),'config.json'), 'r') as f:
+		with open(mpath('config.json'), 'r') as f:
 			data = json.load(f)
 			examineConfig(data)
-			logger.info("config.json loaded successfully!")
+			plog("config.json loaded successfully!", logger.info)
 
 	except FileNotFoundError:
-		logger.error("config.json not found, creating new settings file.")
-		print("config.json not found, creating new settings file.")
+		plog("config.json not found, creating new settings file.", logger.error)
 
-		with open(os.path.join(os.getcwd(),'config.json'), 'w') as f:
+		with open(mpath('config.json'), 'w') as f:
 			data = {'subreddit':'ADD YOUR PREFERRED SUBREDDIT',
 					'interval': 'ADD YOUR INTERVAL IN MINUTES (PUT NUMBERS ONLY!!! NO DECIMALS OR LETTERS)',
 					'reddit_api': 'ADD YOUR REDDIT API SECRET',
@@ -71,8 +76,7 @@ def loadConfig():
 					}
 			json.dump(data, f, indent=4)
 
-		logger.critical("config.json successfully created, please edit config.json with correct configuration and run the script again")
-		print("config.json successfully created, please edit config.json with correct configuration and run the script again")
+		plog("config.json successfully created, please edit config.json with correct configuration and run the script again", logger.critical)
 
 		exit(1)
 
@@ -82,7 +86,6 @@ def loadConfig():
 
 '''def loginFb(fb_login):
 	logger.info("logging to fb, please login")
-	#print("a login window will show up, please login to your app")
 
 	response = requests.get(
 		FB_OAUTH, 
@@ -97,7 +100,7 @@ def loadConfig():
 		f.write(response.text)'''
 
 def loginReddit(reddit_api, reddit_client_id, reddit_username, reddit_password):
-	logger.info("logging to reddit, please login")
+	plog("logging to reddit, please login", logger.info)
 	#print("a login window will show up, please login to your app")
 
 	'''response = requests.get(
@@ -122,16 +125,16 @@ def loginReddit(reddit_api, reddit_client_id, reddit_username, reddit_password):
 	return reddit
 
 def scrapeSubreddit(subreddit):
-	logger.info("scraping subreddit")
+	plog("scraping subreddit", logger.info)
 
 	try:
-		with open(os.path.join(os.getcwd(), 'posts.json'), 'r', encoding='utf-8') as f:
+		with open(mpath('posts.json'), 'r', encoding='utf-8') as f:
 			data = json.load(f)
 			posts = data['posts']
 	except FileNotFoundError:
-		logger.error("posts.json not found, creating new posts.json")
+		plog("posts.json not found, creating new posts.json", logger.error)
 		subposts = subreddit.hot()
-		with open(os.path.join(os.getcwd(), 'posts.json'), 'w', encoding='utf-8') as f:
+		with open(mpath('posts.json'), 'w', encoding='utf-8') as f:
 			data = {'posts':[]}
 			for i in subposts:
 				if i.stickied == False and is_image(i.url) == True:
@@ -140,18 +143,17 @@ def scrapeSubreddit(subreddit):
 						'link':i.url
 						})
 			json.dump(data, f, indent=4)
-		logger.critical("posts.json successfully created")
-		print("posts.json successfully created")
+		plog("posts.json successfully created", logger.critical)
 
 		posts = data['posts']
 
-	print("data loaded")
+	plog("data loaded", logger.info)
 
 	try:
-		with open(os.path.join(os.getcwd(), 'posted.json'), 'r', encoding='utf8') as f:
+		with open(mpath('posted.json'), 'r', encoding='utf8') as f:
 			pass
 	except FileNotFoundError:
-		with open(os.path.join(os.getcwd(), 'posted.json'), 'w', encoding='utf-8') as f:
+		with open(mpath('posted.json'), 'w', encoding='utf-8') as f:
 			data = {'posted':[]}
 			json.dump(data, f, indent=4)
 
@@ -160,49 +162,55 @@ def scrapeSubreddit(subreddit):
 def loginInsta(instagram_username, instagram_password):
 	insta_api = InstagramAPI(instagram_username, instagram_password)
 	if (insta_api.login()):
-		print("Logged to Instagram successfully")
+		plog("Logged to Instagram successfully", logger.info)
 	else:
-		print("ERROR: Failed to login to Instagram, please make sure you've used the correct username and password and that the connection is not faulty as well.")
-		logger.error("ERROR: Failed to login to Instagram, please make sure you've used the correct username and password and that the connection is not faulty as well.")
+		plog("ERROR: Failed to login to Instagram, please make sure you've used the correct username and password and that the connection is not faulty as well.", logger.error)
 	return insta_api
 
-def PostPhoto(insta_api, photolink, caption):
-	if photolink.endswith('gif') or photolink.endswith('jpeg') or photolink.endswith('png') or photolink.endswith('jpg'):
-		photo = os.path.join(os.getcwd() ,'photo.'+photolink[-3:])
-	else:
-		logger.error(f"{photolink[-3:]} is unsupported format, skipping {photolink}")
-		print(f"{photolink[-3:]} is unsupported format, skipping {photolink}")
-		return 0
-
-	print("downloading photo from", photolink)
-	response = requests.get(photolink, stream=True)
+def downloadPhoto(link, photo):
+	response = requests.get(link, stream=True)
 
 	if response.status_code == 200:
-
 		with open(photo, 'wb') as f:
 			shutil.copyfileobj(response.raw, f)
 
 		if photo.endswith('jpg'):
-			print ("converting jpg")
+			plog ("converting jpg", logger.info)
 			im = Image.open(photo)
 			rgb_im = im.convert('RGB')
-			photo = os.path.join(os.getcwd() ,'photo.jpeg')
+			photo = mpath('photo.jpeg')
 			rgb_im.save(photo)
 
-		print("photo downloaded, posting photo")
-
-		status = insta_api.uploadPhoto(photo, caption=caption)
-		print(status)
-		print("Photo Posted")
-		logger.info("Photo with caption '" + caption + "' posted")
-		os.remove(photo)
+		return photo
 
 	else:
-		print("ERROR: invalid status code for image", photolink)
-		logger.error("ERROR: invalid status code for image " + photolink)
+		plog("ERROR: invalid status code for image", photolink, logger.error)
+		return None
+
+def PostPhoto(insta_api, photolink, caption):
+	if photolink.endswith('gif') or photolink.endswith('jpeg') or photolink.endswith('png') or photolink.endswith('jpg'):
+		photo = mpath('photo.'+photolink[-3:])
+	else:
+		plog(f"{photolink[-3:]} is unsupported format, skipping {photolink}", logger.error)
+		return 0
+
+	plog(f"downloading photo from {photolink}", logger.info)
+
+	photo = downloadPhoto(photolink, photo)
+	if photo is None:
+		return 0
+
+	plog("photo downloaded, posting photo", logger.info)
+
+	status = insta_api.uploadPhoto(photo, caption=caption)
+	plog(status, logger.debug)
+	plog(f"Photo with caption {caption} posted", logger.info)
+	os.remove(photo)
+
+
 
 def RemovePostFromJson(postlink):
-	with open(os.path.join(os.getcwd(), 'posts.json'), 'r+', encoding='utf-8') as f:
+	with open(mpath('posts.json'), 'r+', encoding='utf-8') as f:
 		data = json.load(f)
 		data['posts'][:] = [d for d in data['posts'] if d.get('link') != postlink]
 		f.seek(0)
@@ -210,7 +218,7 @@ def RemovePostFromJson(postlink):
 		json.dump(data, f, indent=4)
 
 def AddPostToPosted(postlink):
-	with open(os.path.join(os.getcwd(), 'posted.json'), 'r+', encoding='utf-8') as f:
+	with open(mpath('posted.json'), 'r+', encoding='utf-8') as f:
 		data = json.load(f)
 		data['posted'].append(postlink)
 		f.seek(0)
@@ -219,25 +227,24 @@ def AddPostToPosted(postlink):
 
 def CheckIfPosted(postlink):
 	try:
-		with open(os.path.join(os.getcwd(), 'posted.json'), 'r', encoding='utf-8') as f:
+		with open(mpath('posted.json'), 'r', encoding='utf-8') as f:
 			data = json.load(f)
 			if postlink in data['posted']:
-				print("skipping post because it's already posted")
+				plog("skipping post because it's already posted", logger.error)
 				return True
 			else:
-				print("proceeding to posting photo")
+				plog("proceeding to posting photo", logger.info)
 				return False
 	except:
-		print("error in CheckIfPosted")
-		logger.error("error in CheckIfPosted")
+		plog("error in CheckIfPosted", logger.error)
 
 def IntervalThread(posts, insta_api, interval):
-	print ("INTERVAL STARTED")
+	plog("INTERVAL STARTED", logger.info)
 	accum = 0
 
 	while accum < len(posts):
-		print ("photo", accum)
-		print (f"link: {posts[accum]['link']}")
+		plog (f"photo {accum}", logger.info)
+		plog (f"link: {posts[accum]['link']}", logger.info)
 		if not CheckIfPosted(posts[accum]['link']):
 			PostPhoto(insta_api, posts[accum]['link'], posts[accum]['title'])
 			RemovePostFromJson(posts[accum]['link'])
@@ -245,28 +252,27 @@ def IntervalThread(posts, insta_api, interval):
 		else:
 			RemovePostFromJson(posts)
 		accum += 1
-		print("sleeping for", interval, "minutes")
+		plog(f"sleeping for {interval} minutes", logger.info)
 		sleep(interval * 60)
 
-	print("DONE!!! ALL POSTS HAVE BEEN POSTED!!")
+	plog("DONE!!! ALL POSTS HAVE BEEN POSTED!!", logger.info)
 
 def main():
 	setupLog()
 	subreddit, interval, reddit_api, reddit_client_id, reddit_username, reddit_password, instagram_username, instagram_password = loadConfig()
-	print("config loaded")
+	plog("config loaded", logger.info)
 	#loginFb(fb_login)
-	#print("logged to fb")
 
 	reddit = loginReddit(reddit_api, reddit_client_id, reddit_username, reddit_password)
-	print("logged to reddit")
+	plog("logged to reddit", logger.info)
 
-	print("scraping subreddit", subreddit)
+	plog("scraping subreddit " + subreddit, logger.info)
 	posts = scrapeSubreddit(reddit.subreddit(subreddit))
 
-	print("logging to instagram")
+	plog("logging to instagram", logger.info)
 	insta_api = loginInsta(instagram_username, instagram_password)
 
-	print("starting interval")
+	plog("starting interval", logger.info)
 	IntervalThread(posts, insta_api, interval)
 
 
