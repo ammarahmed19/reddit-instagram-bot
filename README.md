@@ -42,18 +42,20 @@ You should see this
     "reddit_username": "ADD YOUR REDDIT USERNAME HERE",
     "reddit_password": "ADD YOUR REDDIT PASSWORD HERE",
     "instagram_username": "ADD YOUR INSTAGRAM USERNAME HERE",
-    "instagram_password": "ADD YOUR INSTAGRAM PASSWORD HERE"
+    "instagram_password": "ADD YOUR INSTAGRAM PASSWORD HERE",
+    "instagram_comment": "ADD THE STANDARD COMMENT HERE"
 }
 ```
 
-⋅⋅⋅*. *subreddit* is the subreddit you'd like to fetch posts from
-⋅⋅⋅*. *interval* describes the gap between the functions (in minutes), eg: if the interval is 5 minutes, a new photo will be posted to instagram every 5 minutes
-⋅⋅⋅*. *reddit_api* is the _client_secret_ I showed you above.
-⋅⋅⋅*. *reddit_client_id* is _client_id_ I showed you above.
-⋅⋅⋅*. *reddit_username* is the _username_ of the reddit account you used to create api app above
-⋅⋅⋅*. *reddit_password* is the _password_ of the reddit account you used to create api app above
-⋅⋅⋅*. *instagram_username* is the _username_ of the instagram account you want the media posted to
-⋅⋅⋅*. *instagram_password* is the _password_ of the instagram account you want the media posted to
+⋅⋅⋅* *subreddit* is the subreddit you'd like to fetch posts from
+⋅⋅⋅* *interval* describes the gap between the functions (in minutes), eg: if the interval is 5 minutes, a new photo will be posted to instagram every 5 minutes
+⋅⋅⋅* *reddit_api* is the _client_secret_ I showed you above.
+⋅⋅⋅* *reddit_client_id* is _client_id_ I showed you above.
+⋅⋅⋅* *reddit_username* is the _username_ of the reddit account you used to create api app above
+⋅⋅⋅* *reddit_password* is the _password_ of the reddit account you used to create api app above
+⋅⋅⋅* *instagram_username* is the _username_ of the instagram account you want the media posted to
+⋅⋅⋅* *instagram_password* is the _password_ of the instagram account you want the media posted to
+⋅⋅⋅* *instagram_comment* is the _comment_ that will be commented on on the post right after it's posted. It's generally used for hashtags
 
 **IMPORTANT: PLACE THE DATA BETWEEN THE DOUBLE QUOTES, DO NOT REMOVE THE DOUBLE QUOTES, THE COMMAS OR ANYTHING.**
 
