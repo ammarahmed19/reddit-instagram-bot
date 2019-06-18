@@ -47,15 +47,15 @@ You should see this
 }
 ```
 
-⋅⋅⋅* *subreddit* is the subreddit you'd like to fetch posts from
-⋅⋅⋅* *interval* describes the gap between the functions (in minutes), eg: if the interval is 5 minutes, a new photo will be posted to instagram every 5 minutes
-⋅⋅⋅* *reddit_api* is the _client_secret_ I showed you above.
-⋅⋅⋅* *reddit_client_id* is _client_id_ I showed you above.
-⋅⋅⋅* *reddit_username* is the _username_ of the reddit account you used to create api app above
-⋅⋅⋅* *reddit_password* is the _password_ of the reddit account you used to create api app above
-⋅⋅⋅* *instagram_username* is the _username_ of the instagram account you want the media posted to
-⋅⋅⋅* *instagram_password* is the _password_ of the instagram account you want the media posted to
-⋅⋅⋅* *instagram_comment* is the _comment_ that will be commented on on the post right after it's posted. It's generally used for hashtags
+* _subreddit_ is the subreddit you'd like to fetch posts from
+* _interval_ describes the gap between the functions (in minutes), eg: if the interval is 5 minutes, a new photo will be posted to instagram every 5 minutes
+* _reddit_api_ is the _client_secret_ I showed you above.
+* _reddit_client_id_ is _client_id_ I showed you above.
+* _reddit_username_ is the _username_ of the reddit account you used to create api app above
+* _reddit_password_ is the _password_ of the reddit account you used to create api app above
+* _instagram_username_ is the _username_ of the instagram account you want the media posted to
+* _instagram_password_ is the _password_ of the instagram account you want the media posted to
+* _instagram_comment_ is the _comment_ that will be commented on on the post right after it's posted. It's generally used for hashtags
 
 **IMPORTANT: PLACE THE DATA BETWEEN THE DOUBLE QUOTES, DO NOT REMOVE THE DOUBLE QUOTES, THE COMMAS OR ANYTHING.**
 
