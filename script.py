@@ -4,10 +4,11 @@ import requests
 import praw
 from InstagramAPI import InstagramAPI
 import csv
-from time import sleep
+from time import sleep, time
 import os, os.path
 import shutil
 from PIL import Image
+from requests_toolbelt import MultipartEncoder
 
 
 FB_OAUTH="https://www.facebook.com/v3.3/dialog/oauth"
@@ -17,9 +18,40 @@ REDDIT_OAUTH="https://www.reddit.com/api/v1/authorize"
 LOCAL="http://localhost:8080"
 USER_AGENT ="Mozilla/5.0"
 TIMEOUT=60
+instagram_comment = ''
+reddit = None
+subreddit = None
 image_exts = ['.jpeg', '.png', 'jpg']
 
 logger = None
+
+class InstagramAPIedit(InstagramAPI):
+	def uploadPhoto(self, photo, caption=None, upload_id=None, is_sidecar=None):
+		if upload_id is None:
+		    upload_id = str(int(time() * 1000))
+		data = {'upload_id': upload_id,
+		        '_uuid': self.uuid,
+		        '_csrftoken': self.token,
+		        'image_compression': '{"lib_name":"jt","lib_version":"1.3.0","quality":"87"}',
+		        'photo': ('pending_media_%s.jpg' % upload_id, open(photo, 'rb'), 'application/octet-stream', {'Content-Transfer-Encoding': 'binary'})}
+		if is_sidecar:
+		    data['is_sidecar'] = '1'
+		m = MultipartEncoder(data, boundary=self.uuid)
+		self.s.headers.update({'X-IG-Capabilities': '3Q4=',
+		                       'X-IG-Connection-Type': 'WIFI',
+		                       'Cookie2': '$Version=1',
+		                       'Accept-Language': 'en-US',
+		                       'Accept-Encoding': 'gzip, deflate',
+		                       'Content-type': m.content_type,
+		                       'Connection': 'close',
+		                       'User-Agent': self.USER_AGENT})
+		response = self.s.post(self.API_URL + "upload/photo/", data=m.to_string())
+		if response.status_code == 200:
+			if self.configure(upload_id, photo, caption):
+				mjs = self.LastJson
+				self.expose()
+				return mjs
+		return False
 
 def is_image(url):
     if any(url.endswith(image_ext) for image_ext in image_exts):
@@ -72,7 +104,8 @@ def loadConfig():
 					'reddit_username': 'ADD YOUR REDDIT USERNAME HERE',
 					'reddit_password': 'ADD YOUR REDDIT PASSWORD HERE',
 					'instagram_username': 'ADD YOUR INSTAGRAM USERNAME HERE',
-					'instagram_password': 'ADD YOUR INSTAGRAM PASSWORD HERE'
+					'instagram_password': 'ADD YOUR INSTAGRAM PASSWORD HERE',
+					'instagram_comment': 'ADD THE STANDARD COMMENT HERE'
 					}
 			json.dump(data, f, indent=4)
 
@@ -82,7 +115,7 @@ def loadConfig():
 
 	return (data['subreddit'].strip(), int(data['interval'].strip()), 
 		data['reddit_api'].strip(), data['reddit_client_id'].strip(), data['reddit_username'].strip(), data['reddit_password'].strip(), 
-		data['instagram_username'].strip(), data['instagram_password'].strip())
+		data['instagram_username'].strip(), data['instagram_password'].strip(), data['instagram_comment'].strip())
 
 '''def loginFb(fb_login):
 	logger.info("logging to fb, please login")
@@ -160,7 +193,7 @@ def scrapeSubreddit(subreddit):
 	return posts
 
 def loginInsta(instagram_username, instagram_password):
-	insta_api = InstagramAPI(instagram_username, instagram_password)
+	insta_api = InstagramAPIedit(instagram_username, instagram_password)
 	if (insta_api.login()):
 		plog("Logged to Instagram successfully", logger.info)
 	else:
@@ -180,32 +213,49 @@ def downloadPhoto(link, photo):
 			rgb_im = im.convert('RGB')
 			photo = mpath('photo.jpeg')
 			rgb_im.save(photo)
-
+			os.remove(mpath('photo.jpg'))
 		return photo
 
 	else:
 		plog("ERROR: invalid status code for image", photolink, logger.error)
 		return None
 
+def get_media_id(url):
+    req = requests.get('https://api.instagram.com/oembed/?url={}'.format(url))
+    media_id = req.json()['media_id']
+    return media_id
+
 def PostPhoto(insta_api, photolink, caption):
+	global instagram_comment
+
 	if photolink.endswith('gif') or photolink.endswith('jpeg') or photolink.endswith('png') or photolink.endswith('jpg'):
 		photo = mpath('photo.'+photolink[-3:])
 	else:
 		plog(f"{photolink[-3:]} is unsupported format, skipping {photolink}", logger.error)
-		return 0
+		return False
 
 	plog(f"downloading photo from {photolink}", logger.info)
 
 	photo = downloadPhoto(photolink, photo)
+
 	if photo is None:
-		return 0
+		return False
 
 	plog("photo downloaded, posting photo", logger.info)
 
 	status = insta_api.uploadPhoto(photo, caption=caption)
-	plog(status, logger.debug)
+
+	if status:
+		insta_api.comment(status['media']['caption']['media_id'], instagram_comment)
+	else:
+		return False
+
+	#with open('debug.json', 'w', encoding='utf-8') as f:
+	#	json.dump(status2, f, indent=4)
+	#plog(status, logger.debug)
 	plog(f"Photo with caption {caption} posted", logger.info)
 	os.remove(photo)
+	return True
 
 
 
@@ -238,28 +288,45 @@ def CheckIfPosted(postlink):
 	except:
 		plog("error in CheckIfPosted", logger.error)
 
+def RefreshReddit():
+	global reddit
+	global subreddit
+
+	posts = scrapeSubreddit(reddit.subreddit(subreddit))
+	return posts
+
 def IntervalThread(posts, insta_api, interval):
 	plog("INTERVAL STARTED", logger.info)
 	accum = 0
 
-	while accum < len(posts):
+	while True:
+
+		if accum >= len(posts):
+			accum = 0
+			posts = RefreshReddit()
+
 		plog (f"photo {accum}", logger.info)
 		plog (f"link: {posts[accum]['link']}", logger.info)
 		if not CheckIfPosted(posts[accum]['link']):
-			PostPhoto(insta_api, posts[accum]['link'], posts[accum]['title'])
+			status = PostPhoto(insta_api, posts[accum]['link'], f"{posts[accum]['title']}\nTag your friends!")
 			RemovePostFromJson(posts[accum]['link'])
 			AddPostToPosted(posts[accum]['link'])
+			if status:
+				plog(f"sleeping for {interval} minutes", logger.info)
+				sleep(interval * 60)
 		else:
 			RemovePostFromJson(posts)
 		accum += 1
-		plog(f"sleeping for {interval} minutes", logger.info)
-		sleep(interval * 60)
 
 	plog("DONE!!! ALL POSTS HAVE BEEN POSTED!!", logger.info)
 
 def main():
+	global instagram_comment
+	global reddit
+	global subreddit
+
 	setupLog()
-	subreddit, interval, reddit_api, reddit_client_id, reddit_username, reddit_password, instagram_username, instagram_password = loadConfig()
+	subreddit, interval, reddit_api, reddit_client_id, reddit_username, reddit_password, instagram_username, instagram_password, instagram_comment = loadConfig()
 	plog("config loaded", logger.info)
 	#loginFb(fb_login)
 
