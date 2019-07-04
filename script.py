@@ -295,7 +295,8 @@ def RefreshReddit():
 	posts = scrapeSubreddit(reddit.subreddit(subreddit))
 	return posts
 
-def IntervalThread(posts, insta_api, interval):
+def IntervalThread(iposts, insta_api, interval):
+	posts = iposts[:]
 	plog("INTERVAL STARTED", logger.info)
 	accum = 0
 
