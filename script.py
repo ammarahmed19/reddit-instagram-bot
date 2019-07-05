@@ -291,7 +291,8 @@ def CheckIfPosted(postlink):
 def RefreshReddit():
 	global reddit
 	global subreddit
-
+	plog("Refreshing subreddit", logger.info)
+	os.remove(mpath('posts.json'))
 	posts = scrapeSubreddit(reddit.subreddit(subreddit))
 	return posts
 
